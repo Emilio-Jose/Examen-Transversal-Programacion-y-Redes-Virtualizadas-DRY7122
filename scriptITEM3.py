@@ -1,53 +1,63 @@
 # scriptITEM3.py
-# Sitio web básico que guarda y verifica usuarios con contraseñas seguras
+# Sitio web básico que guarda y verifica personas con claves seguras
 
 import sqlite3
 import hashlib
 from flask import Flask, request
 
-pagina = Flask(__name__)
+sitio = Flask(__name__)
 
-# Crear base de datos y tabla si no existen
-def base_datos():
-    bd = sqlite3.connect("usuarios.db")
-    bd.execute("CREATE TABLE IF NOT EXISTS datos (nombre TEXT, clave TEXT)")
-    bd.commit()
-    bd.close()
+# Crear la base de datos y la tabla si no existen
+def crear_base():
+    conexion = sqlite3.connect("personas.db")
+    conexion.execute("CREATE TABLE IF NOT EXISTS personas (nombre TEXT, clave TEXT)")
+    conexion.commit()
+    conexion.close()
 
-# Ruta para guardar usuario nuevo
-@pagina.route("/guardar", methods=["POST"])
-def guardar():
+# Ruta para registrar una persona
+@sitio.route("/registrar", methods=["POST"])
+def registrar():
     try:
-        print("Contenido recibido:", request.form)  # Línea de depuración
-        nombre = request.form["nombre"]
-        clave = request.form["clave"]
-        clave_segura = hashlib.sha256(clave.encode()).hexdigest()
-        bd = sqlite3.connect("usuarios.db")
-        bd.execute("INSERT INTO datos (nombre, clave) VALUES (?, ?)", (nombre, clave_segura))
-        bd.commit()
-        bd.close()
-        return "Usuario guardado"
-    except Exception as error:
-        return f"Error al guardar: {str(error)}", 400
+        datos = request.form
+        print("Datos recibidos:", datos)
 
-# Ruta para verificar usuario
-@pagina.route("/verificar", methods=["POST"])
+        nombre = datos["nombre"]
+        clave_plana = datos["clave"]
+        clave_cifrada = hashlib.sha256(clave_plana.encode()).hexdigest()
+
+        conexion = sqlite3.connect("personas.db")
+        conexion.execute("INSERT INTO personas (nombre, clave) VALUES (?, ?)", (nombre, clave_cifrada))
+        conexion.commit()
+        conexion.close()
+
+        return "Persona registrada correctamente"
+    except Exception as error:
+        return f"Error al registrar: {str(error)}", 400
+
+# Ruta para verificar una persona
+@sitio.route("/verificar", methods=["POST"])
 def verificar():
     try:
-        nombre = request.form["nombre"]
-        clave = request.form["clave"]
-        clave_segura = hashlib.sha256(clave.encode()).hexdigest()
-        bd = sqlite3.connect("usuarios.db")
-        r = bd.execute("SELECT * FROM datos WHERE nombre = ? AND clave = ?", (nombre, clave_segura))
-        if r.fetchone():
-            return "Correcto"
+        datos = request.form
+        nombre = datos["nombre"]
+        clave_plana = datos["clave"]
+        clave_cifrada = hashlib.sha256(clave_plana.encode()).hexdigest()
+
+        conexion = sqlite3.connect("personas.db")
+        consulta = conexion.execute("SELECT * FROM personas WHERE nombre = ? AND clave = ?", (nombre, clave_cifrada))
+        persona = consulta.fetchone()
+        conexion.close()
+
+        if persona:
+            return "Ingreso correcto"
         else:
-            return "Incorrecto"
+            return "Nombre o clave incorrecta"
     except Exception as error:
         return f"Error al verificar: {str(error)}", 400
 
-# Iniciar la aplicación
+# Iniciar el sitio
 if __name__ == "__main__":
-    base_datos()
-    pagina.run(host="0.0.0.0", port=5800)
+    crear_base()
+    sitio.run(host="0.0.0.0", port=5800)
+
 
